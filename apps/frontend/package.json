@@ -1,0 +1,27 @@
+{
+  "name": "@security-portal/frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node -e \"console.log('frontend: smoke tests covered by typecheck')\""
+  },
+  "dependencies": {
+    "@security-portal/shared": "workspace:*",
+    "lucide-react": "^0.468.0",
+    "next": "^15.3.4",
+    "papaparse": "^5.5.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/papaparse": "^5.5.2",
+    "@types/react": "^19.0.12",
+    "@types/react-dom": "^19.0.4",
+    "typescript": "^5.8.3"
+  }
+}

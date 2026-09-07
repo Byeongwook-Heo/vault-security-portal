@@ -1,0 +1,25 @@
+{
+  "name": "security-portal",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Vault-based Security Self-Service Portal MVP",
+  "packageManager": "pnpm@11.7.0",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @security-portal/backend --filter @security-portal/frontend dev",
+    "build": "pnpm -r build",
+    "deploy:aws": "node scripts/deploy-via-codebuild.mjs",
+    "pretest": "pnpm --filter @security-portal/shared build",
+    "test": "pnpm -r test",
+    "prelint": "pnpm --filter @security-portal/shared build",
+    "lint": "pnpm -r lint",
+    "pretypecheck": "pnpm --filter @security-portal/shared build",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-codebuild": "^3.1083.0",
+    "@aws-sdk/client-s3": "^3.1083.0",
+    "@aws-sdk/client-sts": "^3.1083.0",
+    "@types/node": "^24.0.7",
+    "typescript": "^5.8.3"
+  }
+}

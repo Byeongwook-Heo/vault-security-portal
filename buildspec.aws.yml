@@ -1,0 +1,104 @@
+version: 0.2
+
+env:
+  shell: bash
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 22
+    commands:
+      - corepack enable
+      - corepack prepare pnpm@11.7.0 --activate
+      - command -v jq >/dev/null 2>&1 || dnf install -y jq
+
+  pre_build:
+    commands:
+      - |
+        set -euo pipefail
+        REGISTRY_HOST="${FRONTEND_REPOSITORY_URI%%/*}"
+        aws ecr get-login-password --region "$AWS_DEFAULT_REGION" |
+          docker login --username AWS --password-stdin "$REGISTRY_HOST"
+      - pnpm install --frozen-lockfile
+      - pnpm typecheck
+      - pnpm test
+      - pnpm lint
+
+  build:
+    commands:
+      - |
+        set -euo pipefail
+        IMAGE_TAG="codebuild-${CODEBUILD_BUILD_NUMBER}"
+        if [[ "$DEPLOY_FRONTEND" == "true" ]]; then
+          docker build \
+            --pull \
+            --platform linux/arm64 \
+            --build-arg NEXT_PUBLIC_API_BASE_URL=/api \
+            -f apps/frontend/Dockerfile \
+            -t "${FRONTEND_REPOSITORY_URI}:${IMAGE_TAG}" \
+            -t "${FRONTEND_REPOSITORY_URI}:latest" \
+            .
+        fi
+      - |
+        set -euo pipefail
+        IMAGE_TAG="codebuild-${CODEBUILD_BUILD_NUMBER}"
+        if [[ "$DEPLOY_BACKEND" == "true" ]]; then
+          docker build \
+            --pull \
+            --platform linux/arm64 \
+            -f apps/backend/Dockerfile \
+            -t "${BACKEND_REPOSITORY_URI}:${IMAGE_TAG}" \
+            -t "${BACKEND_REPOSITORY_URI}:latest" \
+            .
+        fi
+
+  post_build:
+    commands:
+      - |
+        set -euo pipefail
+        if [[ "$CODEBUILD_BUILD_SUCCEEDING" != "1" ]]; then
+          echo "Build failed before deployment; ECS was not changed."
+          exit 1
+        fi
+
+        IMAGE_TAG="codebuild-${CODEBUILD_BUILD_NUMBER}"
+        services=()
+
+        if [[ "$DEPLOY_FRONTEND" == "true" ]]; then
+          docker push "${FRONTEND_REPOSITORY_URI}:${IMAGE_TAG}"
+          docker push "${FRONTEND_REPOSITORY_URI}:latest"
+          ./scripts/update-ecs-service-image.sh \
+            "$ECS_CLUSTER" \
+            "$ECS_FRONTEND_SERVICE" \
+            "$ECS_FRONTEND_TASK_FAMILY" \
+            frontend \
+            "${FRONTEND_REPOSITORY_URI}:${IMAGE_TAG}" \
+            APP_UI_BUILD \
+            "$IMAGE_TAG"
+          services+=("$ECS_FRONTEND_SERVICE")
+        fi
+
+        if [[ "$DEPLOY_BACKEND" == "true" ]]; then
+          docker push "${BACKEND_REPOSITORY_URI}:${IMAGE_TAG}"
+          docker push "${BACKEND_REPOSITORY_URI}:latest"
+          ./scripts/update-ecs-service-image.sh \
+            "$ECS_CLUSTER" \
+            "$ECS_BACKEND_SERVICE" \
+            "$ECS_BACKEND_TASK_FAMILY" \
+            backend \
+            "${BACKEND_REPOSITORY_URI}:${IMAGE_TAG}" \
+            APP_API_BUILD \
+            "$IMAGE_TAG"
+          services+=("$ECS_BACKEND_SERVICE")
+        fi
+
+        if [[ ${#services[@]} -eq 0 ]]; then
+          echo "No service was selected for deployment."
+          exit 1
+        fi
+
+        aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services "${services[@]}"
+        curl --retry 6 --retry-delay 10 --retry-all-errors --fail --silent --show-error "$PORTAL_URL/api/health"
+        curl --retry 6 --retry-delay 10 --retry-all-errors --fail --silent --show-error "$PORTAL_URL/api/health/llm"
+        curl --retry 6 --retry-delay 10 --retry-all-errors --fail --silent --show-error "$PORTAL_URL/plugins" >/dev/null
+        echo "AWS deployment completed with image tag ${IMAGE_TAG}."

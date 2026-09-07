@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec > >(tee /var/log/ollama-bootstrap.log | logger -t ollama-bootstrap -s 2>/dev/console) 2>&1
+export DEBIAN_FRONTEND=noninteractive
+
+apt-get update
+apt-get install -y ca-certificates curl jq nginx ubuntu-drivers-common unzip "linux-headers-$(uname -r)"
+
+if ! command -v aws >/dev/null 2>&1; then
+  curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o /tmp/awscliv2.zip
+  unzip -q /tmp/awscliv2.zip -d /tmp
+  /tmp/aws/install --update
+fi
+
+if ! command -v nvidia-smi >/dev/null 2>&1; then
+  ubuntu-drivers install --gpgpu
+fi
+
+if ! command -v ollama >/dev/null 2>&1; then
+  curl -fsSL https://ollama.com/install.sh | sh
+fi
+
+install -d -o ollama -g ollama /opt/ollama/models
+install -d /etc/systemd/system/ollama.service.d
+cat >/etc/systemd/system/ollama.service.d/override.conf <<'UNIT'
+[Service]
+Environment="OLLAMA_HOST=127.0.0.1:${ollama_internal_port}"
+Environment="OLLAMA_MODELS=/opt/ollama/models"
+Environment="OLLAMA_KEEP_ALIVE=30m"
+Environment="OLLAMA_NUM_PARALLEL=2"
+UNIT
+
+OLLAMA_API_TOKEN="$(aws secretsmanager get-secret-value \
+  --region '${aws_region}' \
+  --secret-id '${token_secret_arn}' \
+  --query SecretString \
+  --output text)"
+test -n "$OLLAMA_API_TOKEN"
+
+rm -f /etc/nginx/sites-enabled/default
+cat >/etc/nginx/conf.d/ollama.conf <<'NGINX'
+map_hash_bucket_size 128;
+
+map $http_authorization $ollama_authorized {
+  default 0;
+  "Bearer __OLLAMA_API_TOKEN__" 1;
+}
+
+server {
+  listen ${ollama_api_port};
+  server_name _;
+  server_tokens off;
+  client_max_body_size 2m;
+
+  location / {
+    if ($ollama_authorized = 0) { return 401; }
+    proxy_pass http://127.0.0.1:${ollama_internal_port};
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_buffering off;
+    proxy_request_buffering off;
+    proxy_read_timeout 300s;
+    proxy_send_timeout 300s;
+  }
+}
+NGINX
+sed -i "s|__OLLAMA_API_TOKEN__|$OLLAMA_API_TOKEN|g" /etc/nginx/conf.d/ollama.conf
+chmod 600 /etc/nginx/conf.d/ollama.conf
+
+cat >/usr/local/sbin/ollama-model-bootstrap <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+export OLLAMA_HOST=http://127.0.0.1:${ollama_internal_port}
+
+nvidia-smi
+for attempt in $(seq 1 60); do
+  if curl -fsS "$OLLAMA_HOST/api/version" >/dev/null; then
+    break
+  fi
+  sleep 5
+done
+curl -fsS "$OLLAMA_HOST/api/version" >/dev/null
+jq -n --arg model '${ollama_model}' '{model: $model, stream: false}' \
+  | curl -fsS -X POST "$OLLAMA_HOST/api/pull" -H 'Content-Type: application/json' --data-binary @- \
+  | jq -e '.status == "success"' >/dev/null
+curl -fsS "$OLLAMA_HOST/api/tags" \
+  | jq -e --arg model '${ollama_model}' '.models | any(.name == $model or .model == $model)' >/dev/null
+install -d /var/lib/ollama-bootstrap
+date -u +%FT%TZ >/var/lib/ollama-bootstrap/ready
+SCRIPT
+chmod 750 /usr/local/sbin/ollama-model-bootstrap
+
+cat >/etc/systemd/system/ollama-model-bootstrap.service <<'UNIT'
+[Unit]
+Description=Validate NVIDIA GPU and pull the configured Ollama model
+After=network-online.target ollama.service
+Wants=network-online.target ollama.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ollama-model-bootstrap
+RemainAfterExit=yes
+TimeoutStartSec=1800
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+systemctl daemon-reload
+systemctl enable ollama nginx ollama-model-bootstrap.service
+systemctl restart ollama
+nginx -t
+systemctl restart nginx
+
+if systemctl list-unit-files | grep -q '^amazon-ssm-agent'; then
+  systemctl enable --now amazon-ssm-agent
+elif command -v snap >/dev/null 2>&1; then
+  snap install amazon-ssm-agent --classic || true
+  systemctl enable --now snap.amazon-ssm-agent.amazon-ssm-agent.service || true
+fi
+
+modprobe nvidia || true
+if nvidia-smi >/dev/null 2>&1; then
+  systemctl start ollama-model-bootstrap.service
+else
+  shutdown -r +1
+fi
