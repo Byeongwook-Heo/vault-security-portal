@@ -1,107 +1,46 @@
 # Vault Security Portal
 
-Vault 기반 보안 셀프서비스 포털입니다. 기존 `vault-portal-ui-refresh`와 `factory-productivity-suite`의 최신 확장 기능을 한 저장소에서 관리합니다. 승인·실행·폐기·감사와 Plugin Factory 관련 코드가 포함됩니다.
+[한국어](README.md) · [English](README.en.md)
 
-독립 프로젝트의 기준 브랜치는 `main`입니다. Enterprise AWS Lab 인프라는 [별도 저장소](https://github.com/Byeongwook-Heo/hashicorp-enterprise-aws-lab)에서 관리합니다. 기존 운영 주소는 공개용 예시로 바뀌었으며 실제 배포 대상은 환경 변수로 지정해야 합니다.
+## 목적
 
-Production-oriented MVP for an enterprise security self-service portal backed by HashiCorp Vault.
+HashiCorp Vault 기반 자격증명 요청·승인·발급·폐기 과정을 한 화면에서 운영하고, 정책 기반 셀프서비스를 실습하는 웹 포털입니다.
 
-This repository contains the former `security-portal/` subtree at its root. It does not modify the separate HashiCorp Enterprise AWS Lab environment. The original phase notes below describe the initial MVP; later integration and factory source is included in this consolidated snapshot.
+## 기대 효과
 
-## Phase 1 Scope
+- 사용자 요청과 승인자의 판단, 실행 결과를 연결해 처리 과정을 이해하기 쉽습니다.
+- 활성 자격증명과 감사 이력을 확인하며 수명주기 관리를 연습할 수 있습니다.
+- Mock 모드로 흐름을 검증한 뒤 실제 Vault 어댑터 연동을 준비할 수 있습니다.
 
-- Next.js frontend
-- Node.js/Express backend BFF
-- PostgreSQL metadata store
-- Mock Vault adapter
-- Mock login
-- GitLab token request happy path
-- Approval, execution, revoke, and audit flow
-- AWS ECS Fargate Terraform for a new test environment
+## 주요 기능과 구성
 
-Phase 1 intentionally does not connect to the existing Vault cluster. Real Vault integration is prepared through adapter interfaces and belongs to Phase 2.
+- Next.js 프런트엔드, Node.js/Express BFF, PostgreSQL 메타데이터 저장소
+- 요청 → 승인 → 실행 → 활성 자격증명 → 폐기 → 감사 흐름
+- 개발자·승인자·관리자·감사자 역할과 Mock 로그인
+- Vault 연동 어댑터, 인벤토리, Plugin Factory 및 빌드·배포 지원
+- `infra/aws/terraform/`: ECS Fargate, RDS, ALB, ECR, CodeBuild 구성
 
-## Local Development
+## 시작하기
+
+Node.js와 `package.json`에 명시된 pnpm 버전을 준비합니다. 로컬 Docker 모드는 Mock Vault를 사용합니다.
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 pnpm build
 pnpm test
-```
-
-With Docker running:
-
-```bash
 docker compose up --build
 ```
 
-Open:
+브라우저에서 `http://localhost:3000`에 접속합니다. `developer@example.com`으로 요청하고 `approver@example.com`으로 승인한 뒤 실행·폐기·감사 화면을 확인하세요. 관리자와 감사자 예제 계정은 `admin@example.com`, `auditor@example.com`입니다.
 
-```text
-http://localhost:3000
-```
+## 문서
 
-Mock users:
+- [로컬 개발](docs/local-development.md)
+- [아키텍처](docs/architecture.md)
+- [실제 Vault 연동](docs/real-vault-integration.md)
+- [AWS 배포](docs/aws-deployment.md)
+- [보안 모델](docs/security-model.md)
 
-- `developer@example.com`
-- `approver@example.com`
-- `admin@example.com`
-- `auditor@example.com`
+## 범위와 제약사항
 
-## Happy Path
-
-1. Login as `developer@example.com`.
-2. Open Secret Request.
-3. Submit a GitLab token request for `TANGO-EC`.
-4. Login as `approver@example.com`.
-5. Approve the request.
-6. Execute the request.
-7. Check Active Credentials.
-8. Revoke the credential.
-9. Check Audit Reports.
-
-## AWS Test Environment
-
-Terraform is in:
-
-```text
-infra/aws/terraform
-```
-
-Default mode creates a new test VPC and deploys ECS/RDS/ALB infrastructure. It does not touch the existing lab VPC or Vault instances.
-
-```bash
-cd infra/aws/terraform
-terraform init
-terraform plan
-terraform apply
-```
-
-Application images are built and deployed inside AWS CodeBuild. Local Docker is not required:
-
-```bash
-cd ../../..
-pnpm deploy:aws
-```
-
-Use `pnpm deploy:aws --frontend-only` or `pnpm deploy:aws --backend-only` for a single service. The command uploads a filtered source archive to the encrypted deployment bucket; CodeBuild runs tests, builds ARM64 images, pushes them to ECR, updates ECS, waits for service stability, and checks the portal health endpoints.
-
-## Vault Mode
-
-Default:
-
-```text
-VAULT_MODE=mock
-```
-
-Phase 2 can switch to:
-
-```text
-VAULT_MODE=real
-VAULT_ADDR=http://<private-vault-endpoint>:8200
-VAULT_NAMESPACE=<namespace>
-```
-
-Do not use a Vault root token in application runtime. Use a tightly scoped service token, AppRole, AWS IAM auth, or user token pass-through depending on the operating model.
-
-Real Vault integration details are in [docs/real-vault-integration.md](docs/real-vault-integration.md).
+기본 로그인과 Vault 동작은 Mock 모드입니다. 실제 연동에는 TLS, 최소 권한, AppRole 등 인증 설정과 대상 제품의 API·라이선스 검토가 필요합니다. 애플리케이션에 Vault root token을 사용하지 마세요. `pnpm deploy:aws`는 AWS 리소스와 서비스에 영향을 주는 배포 명령이며, 클라우드 비용이 발생합니다.
