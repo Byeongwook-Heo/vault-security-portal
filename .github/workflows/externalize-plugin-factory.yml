@@ -1,3 +1,4 @@
+# Retry after allowing the pinned Factory git package prepare script.
 name: Externalize Vault Plugin Factory
 
 on:
