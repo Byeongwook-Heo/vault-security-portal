@@ -17,7 +17,7 @@ A web portal for practicing policy-based self-service across the request, approv
 - Next.js frontend, Node.js/Express BFF, and PostgreSQL metadata store
 - Request → approval → execution → active credentials → revocation → audit
 - Developer, approver, administrator, and auditor roles with mock login
-- Vault adapters, inventory, Plugin Factory, and build/distribution support
+- Vault adapters and inventory plus [Vault Plugin Factory](https://github.com/Byeongwook-Heo/vault-plugin-factory) invocation/approval UI and orchestration
 - `infra/aws/terraform/`: ECS Fargate, RDS, ALB, ECR, and CodeBuild infrastructure
 
 ## Getting started
@@ -44,3 +44,7 @@ Open `http://localhost:3000`. Submit a request as `developer@example.com`, appro
 ## Scope and limitations
 
 Authentication and Vault behavior default to mock mode. Real integrations require TLS, least-privilege authentication such as AppRole, and review of product APIs and licensing. Never use a Vault root token in the application. `pnpm deploy:aws` changes AWS services and incurs cloud costs.
+
+## Related project
+
+- [Vault Plugin Factory](https://github.com/Byeongwook-Heo/vault-plugin-factory) — custom-plugin design, generation, build, validation, and distribution

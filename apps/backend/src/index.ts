@@ -22,27 +22,29 @@ import { clearSessionCookie, readCookie, setSessionCookie } from "./auth/cookies
 import { MemoryStore } from "./store/memory-store";
 import { PostgresStore } from "./store/postgres-store";
 import type { PortalStore } from "./store/types";
-import { generateVaultPluginScaffold, vaultPluginTemplates } from "./plugin-factory/catalog";
-import { FactoryAssistant } from "./plugin-factory/factory-assistant";
 import {
+  FactoryAssistant,
+  FactoryBuildService,
+  FactoryRequirementsInterviewer,
+  VaultPluginDistributor,
   factoryArtifactEvidence,
   factoryArtifactFingerprint,
-  hasVerifiedFactoryArtifact
-} from "./plugin-factory/factory-artifact";
-import { FactoryBuildService } from "./plugin-factory/factory-build-service";
+  generateVaultPluginScaffold,
+  hasVerifiedFactoryArtifact,
+  normalizeManagedMountPath,
+  resolveManagedPluginMount,
+  vaultPluginTemplates
+} from "@vault-plugin-factory/core";
 import {
   recoverStalledFactoryBuildJobs,
   restoreCompletedFactoryBuildSnapshots
 } from "./plugin-factory/factory-job-recovery";
-import { FactoryRequirementsInterviewer } from "./plugin-factory/factory-requirements";
-import { VaultPluginDistributor } from "./plugin-factory/plugin-distributor";
 import {
   buildPortalAssistantSnapshot,
   PortalAssistant,
   portalAssistantViews
 } from "./portal-assistant";
 import { redact } from "./utils/redact";
-import { normalizeManagedMountPath, resolveManagedPluginMount } from "./vault/plugin-mount-guard";
 import { createVaultClient } from "./vault/vault-client";
 import { createVaultUiProxy } from "./vault/vault-ui-proxy";
 import { WorkflowService } from "./workflow/workflow-service";

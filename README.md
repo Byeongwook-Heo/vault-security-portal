@@ -17,7 +17,7 @@ HashiCorp Vault 기반 자격증명 요청·승인·발급·폐기 과정을 한
 - Next.js 프런트엔드, Node.js/Express BFF, PostgreSQL 메타데이터 저장소
 - 요청 → 승인 → 실행 → 활성 자격증명 → 폐기 → 감사 흐름
 - 개발자·승인자·관리자·감사자 역할과 Mock 로그인
-- Vault 연동 어댑터, 인벤토리, Plugin Factory 및 빌드·배포 지원
+- Vault 연동 어댑터와 인벤토리, [Vault Plugin Factory](https://github.com/Byeongwook-Heo/vault-plugin-factory) 호출·승인 UI/오케스트레이션
 - `infra/aws/terraform/`: ECS Fargate, RDS, ALB, ECR, CodeBuild 구성
 
 ## 시작하기
@@ -44,3 +44,7 @@ docker compose up --build
 ## 범위와 제약사항
 
 기본 로그인과 Vault 동작은 Mock 모드입니다. 실제 연동에는 TLS, 최소 권한, AppRole 등 인증 설정과 대상 제품의 API·라이선스 검토가 필요합니다. 애플리케이션에 Vault root token을 사용하지 마세요. `pnpm deploy:aws`는 AWS 리소스와 서비스에 영향을 주는 배포 명령이며, 클라우드 비용이 발생합니다.
+
+## 관련 프로젝트
+
+- [Vault Plugin Factory](https://github.com/Byeongwook-Heo/vault-plugin-factory) — Custom Plugin 설계·생성·빌드·검증·배포

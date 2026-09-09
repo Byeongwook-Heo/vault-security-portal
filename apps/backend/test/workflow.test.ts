@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppConfig } from "../src/config";
-import { generateVaultPluginScaffold, vaultPluginTemplates } from "../src/plugin-factory/catalog";
-import { factoryExpansionReservedTargets, factoryExpansionTemplates } from "../src/plugin-factory/expansion-catalog";
+import {
+  factoryExpansionReservedTargets,
+  factoryExpansionTemplates,
+  generateVaultPluginScaffold,
+  vaultPluginTemplates
+} from "@vault-plugin-factory/core";
 import { MemoryStore } from "../src/store/memory-store";
 import { createVaultClient } from "../src/vault/vault-client";
 import { WorkflowService } from "../src/workflow/workflow-service";
