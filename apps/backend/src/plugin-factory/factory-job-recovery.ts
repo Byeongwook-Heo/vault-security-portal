@@ -4,8 +4,7 @@ import type {
   VaultPluginFactoryJob,
   VaultPluginRequirements
 } from "@security-portal/shared";
-import { generateVaultPluginScaffold } from "./catalog";
-import { hasVerifiedFactoryArtifact } from "./factory-artifact";
+import { generateVaultPluginScaffold, hasVerifiedFactoryArtifact } from "@vault-plugin-factory/core";
 import type { PortalStore } from "../store/types";
 
 export async function restoreCompletedFactoryBuildSnapshots(store: PortalStore): Promise<number> {

@@ -9,3 +9,4 @@ onlyBuiltDependencies:
 allowBuilds:
   esbuild: true
   sharp: true
+  "@vault-plugin-factory/core@https://codeload.github.com/Byeongwook-Heo/vault-plugin-factory/tar.gz/1eca6b73c6c743c54ca4a57f0003a28e4a03f6d0": true
