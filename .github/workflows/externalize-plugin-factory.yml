@@ -1,4 +1,4 @@
-# Retry after allowing the pinned Factory git package prepare script.
+# Retry after converting the remaining Portal test import to the external Factory package.
 name: Externalize Vault Plugin Factory
 
 on:
@@ -93,6 +93,14 @@ jobs:
               'import { generateVaultPluginScaffold, hasVerifiedFactoryArtifact } from "@vault-plugin-factory/core";\n'
           )
           recovery_path.write_text(recovery)
+
+          workflow_test_path = Path("apps/backend/test/workflow.test.ts")
+          workflow_test = workflow_test_path.read_text()
+          workflow_test = workflow_test.replace(
+              'import { generateVaultPluginScaffold, vaultPluginTemplates } from "../src/plugin-factory/catalog";\nimport { factoryExpansionReservedTargets, factoryExpansionTemplates } from "../src/plugin-factory/expansion-catalog";\n',
+              'import {\n  factoryExpansionReservedTargets,\n  factoryExpansionTemplates,\n  generateVaultPluginScaffold,\n  vaultPluginTemplates\n} from "@vault-plugin-factory/core";\n'
+          )
+          workflow_test_path.write_text(workflow_test)
 
           readme_path = Path("README.md")
           readme = readme_path.read_text().replace(
